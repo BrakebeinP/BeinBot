@@ -9,3 +9,5 @@
 >REDDIT_CLIENT_SECRET={your reddit client secred}  
 >REDDIT_USER_ID={your reddit user ID}  
 >REDDIT_USER_PW={your reddit PW}
+
+- Also, for the reddit function to work with videos, you need ffmpeg.exe in your main folder
