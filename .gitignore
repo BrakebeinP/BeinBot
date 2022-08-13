@@ -8,3 +8,4 @@ message.json
 /cogs/__pycache__
 /reddit_vids
 .env
+/venv
