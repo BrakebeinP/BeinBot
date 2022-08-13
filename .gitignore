@@ -1,0 +1,10 @@
+*.log
+kek.py
+test.py
+ffmpeg.exe
+message.json
+/.idea
+/__pycache__
+/cogs/__pycache__
+/reddit_vids
+.env
