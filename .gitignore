@@ -1,5 +1,4 @@
 *.log
-kek.py
 test.py
 ffmpeg.exe
 message.json
@@ -9,3 +8,4 @@ message.json
 /reddit_vids
 .env
 /venv
+/imgs

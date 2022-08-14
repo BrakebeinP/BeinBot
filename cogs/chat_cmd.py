@@ -14,7 +14,7 @@ class ChatCommands(commands.Cog):
         await ctx.reply('Derp.', mention_author=False)
 
     @commands.command(name='createchannel')
-    @commands.has_role('admin')
+    @commands.has_permissions(manage_channels=True)
     async def create_channel(self, ctx, channel_name='kek'):
         guild = ctx.guild
         existing_channel = discord.utils.get(guild.channels, name=channel_name)
@@ -25,7 +25,7 @@ class ChatCommands(commands.Cog):
     @commands.command(name='owner')
     async def get_owner(self, ctx):
         await ctx.reply(f'Owner ID: {self.bot.owner_id}')
-    
+       
 
 def setup(bot):
     bot.add_cog(ChatCommands(bot))

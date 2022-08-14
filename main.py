@@ -51,7 +51,7 @@ async def on_command_error(ctx, error):
             ]
             await ctx.send(choice(err_msgs) + f'\n ({error})')
     if isinstance(error, commands.errors.MissingRequiredArgument):
-        await ctx.send('You accidentally the command argument.\n' + error)
+        await ctx.send('You accidentally the command argument.')
     
 
 
