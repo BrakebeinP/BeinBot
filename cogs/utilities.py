@@ -24,6 +24,7 @@ class ChatUtilities(commands.Cog):
 
     @commands.command(name='reddit', help='Reddit vid/img downloader')
     async def reddit_media(self, ctx, cmd_url: str):
+        ctx.embed = ''
         s = await reddit.submission(url=cmd_url)
         if s.is_video:
             vid_h = s.media['reddit_video']['height']
