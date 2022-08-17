@@ -36,6 +36,5 @@ async def reply_with_file(ctx, filename):
         shutil.move(f'{os.getcwd()}/{filename}', f'{os.getcwd()}/vids/{filename}')
 
     elif filename.endswith(imgs):
-        print('test')
         await ctx.reply(file=filename, mention_author=False)
         shutil.move(f'{os.getcwd()}/{filename}', f'{os.getcwd()}/imgs/{filename}')

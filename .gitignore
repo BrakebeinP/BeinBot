@@ -1,10 +1,9 @@
 *.log
 test.py
 ffmpeg.exe
-message.json
+*.json
 /.idea
-/__pycache__
-/cogs/__pycache__
+*__pycache__
 /reddit_vids
 .env
 /venv

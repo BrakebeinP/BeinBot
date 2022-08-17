@@ -4,9 +4,10 @@ import os
 from discord.ext import commands
 from dotenv import load_dotenv
 import urllib.request
-import subprocess
 import shutil
 from . import helper_funcs as hf
+import json
+import sys
 
 load_dotenv()
 
@@ -22,9 +23,20 @@ class ChatUtilities(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
+
+    @commands.command(name='createchannel')
+    @commands.has_permissions(manage_channels=True)
+    async def create_channel(self, ctx, channel_name='kek'):
+        guild = ctx.guild
+        existing_channel = discord.utils.get(guild.channels, name=channel_name)
+        if not existing_channel:
+            print(f'Creating new channel: {channel_name} in {guild.name}')
+            await guild.create_text_channel(channel_name)
+
+
     @commands.command(name='reddit', help='Reddit vid/img downloader')
     async def reddit_media(self, ctx, cmd_url: str):
-        ctx.embed = ''
+        ctx.embed = '[]'
         s = await reddit.submission(url=cmd_url)
         if s.is_video:
             vid_h = s.media['reddit_video']['height']
@@ -51,11 +63,25 @@ class ChatUtilities(commands.Cog):
         
         if 'twitter' in s.url:
             pass
-            #TODO: add twitter interaction
+            # TODO: add twitter interaction
         
         if 'reddit.com/gallery/' in s.url:
             await ctx.reply(s.url, mention_author=False)
 
+
+    @commands.command(name='changeprefix', help=f"Change the prefix of the bot (default = {os.getenv('BOT_PREFIX')})")
+    @commands.check_any(commands.is_owner(), commands.has_permissions(administrator=True))
+    async def change_prefix(self, ctx, new_prefix):
+        with open('prefixes.json', 'r') as f:
+            prefixes = json.load(f)
+
+        old_prefix = prefixes[str(ctx.guild.id)]
+        prefixes[str(ctx.guild.id)] = new_prefix
+
+        with open('prefixes.json', 'w') as f:
+            json.dump(prefixes, f, indent=4)
+        
+        await ctx.send(f'Changed bot prefix from {old_prefix} to {new_prefix}')
 
 
     @commands.command(name='shutdown', help='Shuts the bot down (bot owner only)')
@@ -63,7 +89,7 @@ class ChatUtilities(commands.Cog):
     async def shutdown(self, ctx):
         await ctx.send('Shutting down')
         await self.bot.close()
-        exit()
+        sys.exit(f'Bot shutting down..')
 
 
 def setup(bot):

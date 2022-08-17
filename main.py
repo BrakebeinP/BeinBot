@@ -4,6 +4,7 @@ import logging
 from discord.ext import commands
 from dotenv import load_dotenv
 from random import choice
+import json
 
 logger = logging.getLogger('discord')
 logger.setLevel(logging.DEBUG)
@@ -14,7 +15,26 @@ logger.addHandler(handler)
 load_dotenv()
 token = os.getenv('DISCORD_TOKEN')
 
-bot = commands.Bot(command_prefix='!', owner_id=int(os.getenv('BOT_OWNER_ID')))
+def get_prefix(bot, message):
+    with open('prefixes.json', 'r') as f:
+        prefixes = json.load(f)
+    
+    try: 
+        return prefixes[str(message.guild.id)]
+    except KeyError:
+        add_prefix(str(message.guild.id), os.getenv('BOT_PREFIX'))
+        return prefixes[str(message.guild.id)]
+
+def add_prefix(guild_id: str, prefix: str):
+    with open('prefixes.json', 'r') as f:
+        prefixes = json.load(f)
+
+    prefixes[guild_id] = prefix
+
+    with open('prefixes.json', 'w') as f:
+        json.dump(prefixes, f, indent=4)
+
+bot = commands.Bot(command_prefix=get_prefix, owner_id=int(os.getenv('BOT_OWNER_ID')))
 
 cog_files = ['cogs.chat_cmd', 'cogs.utilities']
 
@@ -22,11 +42,27 @@ for cog_file in cog_files:
     bot.load_extension(cog_file)
     print(f'Loaded {cog_file}')
 
+
 @bot.event
 async def on_ready():
-    guilds = '\n - '.join([f'{guild.name}, Owner: {guild.owner_id}' for guild in bot.guilds])
+    with open('prefixes.json', 'r') as f:
+        prefixes = json.load(f)
+    for guild in bot.guilds:
+        if str(guild.id) not in prefixes.keys():
+            add_prefix(str(guild.id), os.getenv('BOT_PREFIX'))
+    guilds = '\n - '.join([f'{guild.name}' for guild in bot.guilds])
     print(f'{bot.user.name} has connected to the following servers:\n - {guilds}')
-    print(f'Command prefix = {bot.command_prefix}')
+    print(f'Default prefix = {os.getenv("BOT_PREFIX")}')
+
+@bot.event
+async def on_guild_join(guild):
+    with open('prefixes.json', 'r') as f:
+        prefixes = json.load(f)
+
+    prefixes[str(guild.id)] = os.getenv("BOT_PREFIX")
+
+    with open('prefixes.json', 'w') as f:
+        json.dump(prefixes, f)
 
 @bot.event
 async def on_error(event, *args, **kwargs):
@@ -52,8 +88,6 @@ async def on_command_error(ctx, error):
             await ctx.send(choice(err_msgs) + f'\n ({error})')
     if isinstance(error, commands.errors.MissingRequiredArgument):
         await ctx.send('You accidentally the command argument.')
-    
-
 
 @bot.event
 async def on_message(msg):
