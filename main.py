@@ -1,5 +1,4 @@
 import os
-import discord
 import logging
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -53,6 +52,7 @@ async def on_ready():
     guilds = '\n - '.join([f'{guild.name}' for guild in bot.guilds])
     print(f'{bot.user.name} has connected to the following servers:\n - {guilds}')
     print(f'Default prefix = {os.getenv("BOT_PREFIX")}')
+    print(';'.join([ch.name for ch in guild.channels for guild in bot.guilds]))
 
 @bot.event
 async def on_guild_join(guild):
@@ -69,13 +69,15 @@ async def on_error(event, *args, **kwargs):
     with open('err.log', 'a') as f:
         if event == 'on_message':
             f.write(f'Unhandled message: {args[0]}\n')
+        elif event == 'command_error':
+            f.write(f'ERROR: {args[0]}\n')
         else:
             raise
 
 @bot.event
 async def on_command_error(ctx, error):
-    if isinstance(error, commands.errors.CheckFailure):
-        if isinstance(error, commands.errors.NotOwner):
+    if isinstance(error, commands.CheckFailure):
+        if isinstance(error, commands.NotOwner):
             await ctx.message.add_reaction('🚫')
             await ctx.reply('You are not the bot owner', mention_author=False)
         else:
@@ -86,8 +88,20 @@ async def on_command_error(ctx, error):
                 'Dick not big enough.'
             ]
             await ctx.send(choice(err_msgs) + f'\n ({error})')
-    if isinstance(error, commands.errors.MissingRequiredArgument):
+
+    if isinstance(error, commands.MissingRequiredArgument):
         await ctx.send('You accidentally the command argument.')
+
+    if isinstance(error, commands.CommandNotFound):
+        with open('commands.json', 'r') as f:
+            commands = json.load(f)
+            print(ctx.message)
+        try:
+            cmd = commands[str(ctx.guild.id)]
+            print(cmd)
+        except:
+            ctx.reply('Command not found', mention_author=False)
+
 
 @bot.event
 async def on_message(msg):

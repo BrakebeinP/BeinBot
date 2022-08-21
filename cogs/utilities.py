@@ -19,7 +19,7 @@ reddit = asyncpraw.Reddit(
 
 
 
-class ChatUtilities(commands.Cog):
+class ChatUtilities(commands.Cog, name='Utilities'):
     def __init__(self, bot):
         self.bot = bot
 
@@ -84,7 +84,37 @@ class ChatUtilities(commands.Cog):
         await ctx.send(f'Changed bot prefix from {old_prefix} to {new_prefix}')
 
 
-    @commands.command(name='shutdown', help='Shuts the bot down (bot owner only)')
+    @commands.command(name='emoteinfo')
+    @commands.is_owner()
+    async def emote_info(self, ctx, emote):
+        emoteinfo = {
+            'name' : emote.name,
+            'id' : emote.id,
+            'require_colons' : emote.require_colons,
+            'animated' : emote.animated,
+            'managed' : emote.managed,
+            'guild' : emote.guild,
+            'guild_id' : emote.guild_id,
+            'available' : emote.available,
+            'created_at' : emote.created_at,
+            'url' : emote.url,
+            'roles' : emote.roles,
+            'usable' : emote.is_usable()
+        }
+        e = [f'{key}: {value}' for key,value in emoteinfo.values()]
+        ctx.reply('```'+'\n'.join(e)+'```')
+
+
+    @commands.command(name='update', hidden=True)
+    @commands.is_owner()
+    async def update_cogs(self, ctx):
+        for i in self.bot.extensions:
+            self.bot.reload_extension(i)
+            print(f'Updating {i}')
+        # cogs = []
+
+
+    @commands.command(name='shutdown', help='Shuts the bot down (bot owner only)', hidden=True)
     @commands.is_owner()
     async def shutdown(self, ctx):
         await ctx.send('Shutting down')
