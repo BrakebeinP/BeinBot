@@ -4,6 +4,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 from random import choice
 import json
+import discord.ext.commands.errors as command_errors
 
 logger = logging.getLogger('discord')
 logger.setLevel(logging.DEBUG)
@@ -46,9 +47,15 @@ for cog_file in cog_files:
 async def on_ready():
     with open('prefixes.json', 'r') as f:
         prefixes = json.load(f)
+    with open ('cmd.json', 'r') as f:
+        cmds = json.load(f)
     for guild in bot.guilds:
         if str(guild.id) not in prefixes.keys():
             add_prefix(str(guild.id), os.getenv('BOT_PREFIX'))
+        if str(guild.id) not in cmds.keys():
+            cmds[str(guild.id)] = dict()
+    with open ('cmd.json', 'w') as f:
+        json.dump(cmds, f, indent=4)
     guilds = '\n - '.join([f'{guild.name}' for guild in bot.guilds])
     print(f'{bot.user.name} has connected to the following servers:\n - {guilds}')
     print(f'Default prefix = {os.getenv("BOT_PREFIX")}')
@@ -58,11 +65,16 @@ async def on_ready():
 async def on_guild_join(guild):
     with open('prefixes.json', 'r') as f:
         prefixes = json.load(f)
+    with open('cmd.json', 'r') as f:
+        cmds = json.load(f)
 
     prefixes[str(guild.id)] = os.getenv("BOT_PREFIX")
+    cmds[str(guild.id)] = dict()
 
     with open('prefixes.json', 'w') as f:
-        json.dump(prefixes, f)
+        json.dump(prefixes, f, indent=4)
+    with open('cmd.json', 'w') as f:
+        json.dump(cmds, f, indent=4)
 
 @bot.event
 async def on_error(event, *args, **kwargs):
@@ -76,8 +88,8 @@ async def on_error(event, *args, **kwargs):
 
 @bot.event
 async def on_command_error(ctx, error):
-    if isinstance(error, commands.CheckFailure):
-        if isinstance(error, commands.NotOwner):
+    if isinstance(error, command_errors.CheckFailure):
+        if isinstance(error, command_errors.NotOwner):
             await ctx.message.add_reaction('🚫')
             await ctx.reply('You are not the bot owner', mention_author=False)
         else:
@@ -89,18 +101,18 @@ async def on_command_error(ctx, error):
             ]
             await ctx.send(choice(err_msgs) + f'\n ({error})')
 
-    if isinstance(error, commands.MissingRequiredArgument):
+    if isinstance(error, command_errors.MissingRequiredArgument):
         await ctx.send('You accidentally the command argument.')
 
-    if isinstance(error, commands.CommandNotFound):
-        with open('commands.json', 'r') as f:
+    if isinstance(error, command_errors.CommandNotFound):
+        with open('cmd.json', 'r') as f:
             commands = json.load(f)
-            print(ctx.message)
         try:
-            cmd = commands[str(ctx.guild.id)]
-            print(cmd)
-        except:
-            ctx.reply('Command not found', mention_author=False)
+            cmd = commands[str(ctx.guild.id)][str(ctx.message.content[1:])]['response']
+            await ctx.reply(cmd, mention_author=False)
+            #TODO: get emoji responses working
+        except KeyError:
+            await ctx.reply('Command not found', mention_author=False)
 
 
 @bot.event

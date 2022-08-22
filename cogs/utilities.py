@@ -87,28 +87,36 @@ class ChatUtilities(commands.Cog, name='Utilities'):
     @commands.command(name='emoteinfo')
     @commands.is_owner()
     async def emote_info(self, ctx, emote):
-        emoteinfo = {
-            'name' : emote.name,
-            'id' : emote.id,
-            'require_colons' : emote.require_colons,
-            'animated' : emote.animated,
-            'managed' : emote.managed,
-            'guild' : emote.guild,
-            'guild_id' : emote.guild_id,
-            'available' : emote.available,
-            'created_at' : emote.created_at,
-            'url' : emote.url,
-            'roles' : emote.roles,
-            'usable' : emote.is_usable()
-        }
-        e = [f'{key}: {value}' for key,value in emoteinfo.values()]
-        ctx.reply('```'+'\n'.join(e)+'```')
+        print(emote)
+        print(int(emote.split(':')[-1][:-1]))
+        emoji = self.bot.get_emoji(int(emote.split(':')[-1][:-1]))
+        if emoji != None:
+            print(type(emoji))
+            emoteinfo = {
+                'name' : emoji.name,
+                'id' : emoji.id,
+                'require_colons' : emoji.require_colons,
+                'animated' : emoji.animated,
+                'managed' : emoji.managed,
+                'guild' : emoji.guild,
+                'guild_id' : emoji.guild_id,
+                'available' : emoji.available,
+                'created_at' : emoji.created_at,
+                'url' : emoji.url,
+                'roles' : emoji.roles,
+                'usable' : emoji.is_usable()
+            }
+            emoji = [f'{key}: {value}' for key,value in emoteinfo.items()]
+            await ctx.reply('```'+'\n'.join(emoji)+'```', mention_author=False)
+        else:
+            await ctx.reply('Not an emote', mention_author=False)
 
 
     @commands.command(name='update', hidden=True)
     @commands.is_owner()
     async def update_cogs(self, ctx):
-        for i in self.bot.extensions:
+        ext = self.bot.extensions
+        for i in ext:
             self.bot.reload_extension(i)
             print(f'Updating {i}')
         # cogs = []
