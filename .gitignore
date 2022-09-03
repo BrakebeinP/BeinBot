@@ -4,8 +4,8 @@ ffmpeg.exe
 *.json
 /.idea
 *__pycache__
-/reddit_vids
+/vids
 .env
 /venv
 /imgs
-ideas.txt
+*.txt

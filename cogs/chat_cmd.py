@@ -14,7 +14,7 @@ class ChatCommands(commands.Cog, name='Regular commands'):
 
     @commands.command(name='addcommand', help='Adds a custom command to the server:\nsyntax= {prefix}addcommand {new command name} {bot response}')
     async def add_command(self, ctx, new_cmd, *, cmd_resp):
-        with open('cmd.json', 'r') as f:
+        with open('json/cmd.json', 'r') as f:
             cmds = json.load(f)
         if new_cmd in self.bot.commands:
             ctx.reply("Command is a standard bot command, couldn't add.")
@@ -29,31 +29,34 @@ class ChatCommands(commands.Cog, name='Regular commands'):
                 }
                 guild_cmds[str(new_cmd)] = cmd
                 cmds[str(ctx.guild.id)][str(new_cmd)] = cmd
-                with open('cmd.json', 'w') as f:
+                with open('json/cmd.json', 'w') as f:
                     json.dump(cmds, f, indent=4)
                 await ctx.reply(f'Added command "{new_cmd}": {cmd_resp}', mention_author=False)
+
             elif str(new_cmd) in cmds[str(ctx.guild.id)].keys():
                 await ctx.reply('Command already exits:\n' +
-                    f'Created by: {await self.bot.fetch_user(int(cmds[str(ctx.guild.id)][str(new_cmd)]["created_by"]))}' +
-                    f"at {cmds[str(ctx.guild.id)]['new_cmd']['created_at']}",
+                    f'```Created by: {await self.bot.fetch_user(int(cmds[str(ctx.guild.id)][str(new_cmd)]["created_by"]))}\n' +
+                    f"Created at: {cmds[str(ctx.guild.id)][str(new_cmd)]['created_at']}```",
                     mention_author=False
                 )
+
             else:
                 await ctx.reply('Unable to add command :PepeS:')
     
     @commands.command(name='delcommand', help='Deletes the custom command')
     async def delete_command(self, ctx, cmd_name):
-        with open('cmd.json', 'r') as f:
+        with open('json/cmd.json', 'r') as f:
             cmds = json.load(f)
 
         if str(ctx.author.id) == cmds[str(ctx.guild.id)][str(cmd_name)]['created_by']:
             try:
                 del(cmds[str(ctx.guild.id)][cmd_name])
-                await ctx.send(f'Deleted command {cmd_name}')
-            except:
-                await ctx.send("Command doesn't exist.")
+                await ctx.reply(f'Deleted command {cmd_name}', mention_author=False)
 
-            with open('cmd.json', 'w') as f:
+            except:
+                await ctx.reply("Command doesn't exist.", mention_author=False)
+
+            with open('json/cmd.json', 'w') as f:
                 json.dump(cmds, f, indent=4)
         else:
             ctx.reply(f'Unable to delete command "{cmd_name}".\n'+
@@ -65,7 +68,7 @@ class ChatCommands(commands.Cog, name='Regular commands'):
             cmd = self.bot.get_command(cmd_name)
             await ctx.reply(f'Standard bot command:\n{cmd.help}')
         else:
-            with open('cmd.json', 'r') as f:
+            with open('json/cmd.json', 'r') as f:
                 cmds = json.load(f)
             if str(cmd_name) in cmds[str(ctx.guild.id)].keys():
                 cmd_info = cmds[str(ctx.guild.id)][str(cmd_name)]
@@ -76,13 +79,7 @@ class ChatCommands(commands.Cog, name='Regular commands'):
             else:
                 await ctx.reply('Not a command: ' + str(cmd_name))
 
-
-
-    @commands.command(name='owner', help='Gets the user ID of the bot owner')
-    async def get_owner(self, ctx):
-        owner = await self.bot.fetch_user(int(self.bot.owner_id))
-        await ctx.reply(f'Owner: {owner}', mention_author=False)
        
 
-def setup(bot):
-    bot.add_cog(ChatCommands(bot))
+async def setup(bot):
+    await bot.add_cog(ChatCommands(bot))

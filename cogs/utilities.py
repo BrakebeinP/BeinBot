@@ -8,13 +8,15 @@ import shutil
 from . import helper_funcs as hf
 import json
 import sys
+from main import COGS
+
 
 load_dotenv()
 
 reddit = asyncpraw.Reddit(
     client_id = os.getenv('REDDIT_CLIENT_ID'),
     client_secret = os.getenv('REDDIT_CLIENT_SECRET'),
-    user_agent='BeinBot v0.0.1 by /u/BrakebeinP'
+    user_agent='BeinBot v0.0.2 by /u/BrakebeinP'
 )
 
 
@@ -24,7 +26,7 @@ class ChatUtilities(commands.Cog, name='Utilities'):
         self.bot = bot
 
 
-    @commands.command(name='createchannel')
+    @commands.command(name='createchannel', hidden=True)
     @commands.has_permissions(manage_channels=True)
     async def create_channel(self, ctx, channel_name='kek'):
         guild = ctx.guild
@@ -36,7 +38,7 @@ class ChatUtilities(commands.Cog, name='Utilities'):
 
     @commands.command(name='reddit', help='Reddit vid/img downloader')
     async def reddit_media(self, ctx, cmd_url: str):
-        ctx.embed = '[]'
+        
         s = await reddit.submission(url=cmd_url)
         if s.is_video:
             vid_h = s.media['reddit_video']['height']
@@ -72,26 +74,26 @@ class ChatUtilities(commands.Cog, name='Utilities'):
     @commands.command(name='changeprefix', help=f"Change the prefix of the bot (default = {os.getenv('BOT_PREFIX')})")
     @commands.check_any(commands.is_owner(), commands.has_permissions(administrator=True))
     async def change_prefix(self, ctx, new_prefix):
-        with open('prefixes.json', 'r') as f:
+        with open('json/prefixes.json', 'r') as f:
             prefixes = json.load(f)
 
         old_prefix = prefixes[str(ctx.guild.id)]
         prefixes[str(ctx.guild.id)] = new_prefix
 
-        with open('prefixes.json', 'w') as f:
+        with open('json/prefixes.json', 'w') as f:
             json.dump(prefixes, f, indent=4)
         
         await ctx.send(f'Changed bot prefix from {old_prefix} to {new_prefix}')
 
 
-    @commands.command(name='emoteinfo')
+    @commands.command(name='emoteinfo', help='Posts info about an emote', hidden=True) # TODO: remove hidden once this works for all emotes
     @commands.is_owner()
-    async def emote_info(self, ctx, emote):
+    async def emote_info(self, ctx, emote, /):
+        emote_id = int(emote.split(':')[-1][:-1])
         print(emote)
-        print(int(emote.split(':')[-1][:-1]))
-        emoji = self.bot.get_emoji(int(emote.split(':')[-1][:-1]))
-        if emoji != None:
-            print(type(emoji))
+        print(emote_id)
+        try:
+            emoji = self.bot.get_emoji(emote_id)
             emoteinfo = {
                 'name' : emoji.name,
                 'id' : emoji.id,
@@ -108,27 +110,73 @@ class ChatUtilities(commands.Cog, name='Utilities'):
             }
             emoji = [f'{key}: {value}' for key,value in emoteinfo.items()]
             await ctx.reply('```'+'\n'.join(emoji)+'```', mention_author=False)
+        except:
+            try:
+                emoji = discord.PartialEmoji.from_str(emote)
+                await emoji.save()
+            except:
+                print('NOPE')
+                await ctx.reply('Not an emote', mention_author=False)
         else:
             await ctx.reply('Not an emote', mention_author=False)
+
+
+    @commands.command(name='owner', help='Tells you who the bot owner is')
+    async def get_owner(self, ctx):
+        owner = await self.bot.fetch_user(int(self.bot.owner_id))
+        await ctx.reply(f'Bot owner: {owner}', mention_author=False)
 
 
     @commands.command(name='update', hidden=True)
     @commands.is_owner()
     async def update_cogs(self, ctx):
-        ext = self.bot.extensions
-        for i in ext:
-            self.bot.reload_extension(i)
-            print(f'Updating {i}')
-        # cogs = []
+        await self.bot.log_channel.send('Reloading:\n```- ' + '\n- '.join(COGS) + '```', mention_author=False)
+
+        for i in COGS:
+            if i != __name__:
+                self.bot.reload_extension(i)
+                await self.bot.log_channel.send(f'Reloaded {i}')
+
+        await self.bot.log_channel.send(f'Reloaded {__name__}')
+        await self.bot.log_channel.send('Reloaded:\n```' + '\n- '.join(COGS) + '```', mention_author=False)
+
+        await self.bot.reload_extension(__name__)
+        
 
 
-    @commands.command(name='shutdown', help='Shuts the bot down (bot owner only)', hidden=True)
+    @commands.command(name='botinfo', hidden=True)
+    @commands.is_owner()
+    async def get_bot_info(self, ctx):
+        print(self.bot.user.id)
+        bot_info = {
+            'id': self.bot.user.id,
+            'avatar': self.bot.user.avatar,
+            'created_at': self.bot.user.created_at,
+            'default_avatar': self.bot.user.default_avatar,
+            'display_name': self.bot.user.display_name,
+            'discriminator': self.bot.user.discriminator,
+            'display_avatar': self.bot.user.display_avatar,
+            'name': self.bot.user.name}
+        print('getto')
+        info = [key+': '+value for key,value in bot_info.items()]
+        await ctx.reply('```' + '\n'.join(info)+'```', mention_author=False)
+
+    @commands.command(name='cogs', hidden=True)
+    @commands.is_owner()
+    async def self_cogs(self, ctx):
+        cogs = '\n'.join([cog for cog in self.bot.extensions])
+        await self.bot.log_channel.send(cogs)
+
+
+    @commands.command(name='shutdown', hidden=True)
     @commands.is_owner()
     async def shutdown(self, ctx):
-        await ctx.send('Shutting down')
+        with open('last_ctx.txt', 'w') as f:
+            f.write(str(ctx.channel.id))
+        await self.bot.log_channel.send('Shutting down')
         await self.bot.close()
         sys.exit(f'Bot shutting down..')
 
 
-def setup(bot):
-    bot.add_cog(ChatUtilities(bot))
+async def setup(bot):
+    await bot.add_cog(ChatUtilities(bot))
