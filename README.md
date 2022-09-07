@@ -1,5 +1,5 @@
 # BeinBot
-## A shitty bot that you probably shouldn't use (made primarily for personal use)
+## A personal use bot that you probably shouldn't use
 
 ### *If you absolutely want to use this bot, make a file called '.env' in the main folder and put this in it:* 
 >DISCORD_TOKEN={your discord token}  
