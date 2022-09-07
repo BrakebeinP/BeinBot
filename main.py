@@ -33,5 +33,6 @@ def add_prefix(guild_id: str, prefix: str):
 
 if __name__ == '__main__':
     intents = discord.Intents.all()
-    bein_bot = bein_bot.BeinBot(command_prefix=get_prefix, owner_id=int(os.getenv('BOT_OWNER_ID')), intents=intents)
-    bein_bot.run(discord_token)
+    allowed_mentions = discord.AllowedMentions(everyone=True, users=True, roles=True, replied_user=False)
+    bot = bein_bot.BeinBot(command_prefix=get_prefix, owner_id=int(os.getenv('BOT_OWNER_ID')), intents=intents, allowed_mentions=allowed_mentions)
+    bot.run(discord_token)

@@ -1,10 +1,7 @@
 from discord.ext import commands
-import discord
 
 from tweepy import asynchronous
 import tweepy
-
-import asyncio
 
 import json
 import os
@@ -22,66 +19,87 @@ load_dotenv()
 
 class TwitterStream(commands.Cog, asynchronous.AsyncStreamingClient):
 
+# **************************************************************
+#                         ---meta---
+# **************************************************************
+
     def __init__(self, bot, **kwargs):
         self.bot = bot
+        self.tweet_data_channel = self.bot.get_channel(int(os.getenv('BOT_TWEET_DATA_CHANNEL')))
         asynchronous.AsyncStreamingClient.__init__(self, bearer_token=os.getenv('TWITTER_BEARER_TOKEN'), return_type=tweepy.Response, wait_on_rate_limit=False, **kwargs)
+        
+
 
     async def cog_load(self):
         await self._start()
 
+
+    def cog_unload(self):
+        self.disconnect()
+
+# **************************************************************
+#                  ---tweepy client events---
 # **************************************************************
 
     async def on_connect(self):
-        await self.bot.log_channel.send('Twitter.on_connect: Connected to twitter')
+        await self.bot._log_channel('Connected to twitter')
         t_logger.info("Stream connected")
 
     async def on_data(self, raw_data):
-        data = json.loads(raw_data)
-        print_data = json.dumps(data, indent=4)
-        await self.bot.log_channel.send(f'Twitter.on_data:```json\n{print_data}```')
+        await self.bot._log_channel('New tweet')
+        tweet_data = json.loads(raw_data)
+
+        with open('json/twitter.json', 'r') as f:
+            discord_rules = json.load(f)
+
+        author_id = tweet_data['data']['author_id']
+        tweet_id = tweet_data['data']['id']
+        # display_name = None
+        # avatar_url = None
+        user_name = None
+
+        for user in tweet_data['includes']['users']:
+            if user['id'] == author_id:
+                # display_name = user['name']
+                # avatar_url = user['profile_image_url']
+                user_name = user['username']
+
+        matching_rules = [rule['tag'] for rule in tweet_data['matching_rules']]
+        print(matching_rules)
+
+        # tweet_embed = discord.Embed(title='Original tweet',
+        #                     url=f'https://twitter.com/{user_name}/status/{tweet_id}',
+        #                     color=0xAFA690,
+        #                     description=data['text']) 
+
+        for tag in matching_rules:
+            for ch in discord_rules[tag]:
+                channel = self.bot.get_channel(int(ch))
+                await channel.send(f'https://twitter.com/{user_name}/status/{tweet_id}')
+                # webhook = await channel.create_webhook(name=display_name)
+                # await webhook.send(embed=tweet_embed, username=display_name, avatar_url=avatar_url)
+                # webhooks = channel.webhooks()
+                # for hook in webhooks:
+                #     await hook.delete()
+
 
 # **************************************************************
-
-    # def on_data(self, raw_data):
-    #     data = json.loads(raw_data)
-    #     print(data['entities']['id'])
-    #     print(data['entities']['text'])
-    #     # print(f'https://twitter.com/twitter/status/{tweet.id}')
-    #     rules = await self.get_rules()
-    #     rule = data['matching_rules'][0]['tag']
-    #     channel = await self.get_channel(int(rules[rule]['channel']))
-    #     await channel.send('```json\n' + json.dumps(data) + '```')
-
-
-    # async def send_tweet(self, ctx, tweet):
-    #     fields = ['name', 'username', 'profile_image_url']
-    #     tweet_info = self.tw_util.get_tweet(tweet.id, expansions='author_id', user_fields=fields)
-    #     tweet_author = tweet_info.includes['users'][0]
-    #     webhook = await ctx.create_webhook(name=tweet_author.name)
-    #     embed = discord.Embed(
-    #         title='Original tweet', 
-    #         url=f'https://twitter.com/{tweet_author.username}/status/{tweet.id}',
-    #         color=0xAFA690)
-    #     await webhook.send(embed, username=tweet_author.name, avatar_url=tweet_author.profile_image_url)
-
-    #     webhooks = ctx.channel.webhooks()
-    #     for webhook in webhooks:
-    #         await webhook.delete()
-    
+#                 ---stream control commands---
+# **************************************************************
 
     @commands.group(name='twitter', help='Twitter stuffs. For subcommands, try !help twitter', aliases=['tw', 't'])
     @commands.is_owner()
     async def twitter_utils(self, ctx):
         if ctx.invoked_subcommand is None:
-            await ctx.reply('Not a valid subcommand (yet... maybe)', mention_author=False)
+            await ctx.reply('Not a valid subcommand (yet... maybe)')
 
 
 
-    @twitter_utils.group(name='stream', alias=['str', 's'])
+    @twitter_utils.group(name='stream', aliases=['str', 's'])
     @commands.is_owner()
     async def stream_manager(self, ctx):
         if ctx.invoked_subcommand is None:
-            await ctx.reply('Not a valid subcommand (yet... maybe)', mention_author=False)
+            await ctx.reply('Not a valid subcommand (yet... maybe)')
 
 
 
@@ -104,19 +122,21 @@ class TwitterStream(commands.Cog, asynchronous.AsyncStreamingClient):
         rules = await self.get_rules()
         
         if rules.data is not None:
-            await self.bot.log_channel.send('\n'.join([rule for rule in rules.data]))
+            tw_rules = '\n'.join([rule.tag for rule in rules.data])
+            await self.bot._log_channel('```' + tw_rules + '```')
         else:
-            await ctx.reply('No rules found.', mention_author=False)
+            await ctx.reply('No rules found.')
 
 
     @stream_manager.command(name='update', aliases=['u'])
     async def update_stream_rules(self, ctx):
-        await self._update_discord_rules(await ctx.reply('Updating...', mention_author=False))
+        await self._update_discord_rules(await ctx.reply('Updating...'))
 
 
     @stream_manager.command(name='info', aliases=['i'])
     async def twitter_stream_info(self, ctx):
-        await self.bot.log_channel.send('```'+'\n'.join([self.session, self.task, self.user_agent])+'```')
+        info = '\n'.join([self.session, self.task, self.user_agent])
+        await self.bot._log_channel(f'```{info}```')
 
     
     @stream_manager.command(name='clear', aliases=['c', 'cl', 'clr'])
@@ -125,54 +145,51 @@ class TwitterStream(commands.Cog, asynchronous.AsyncStreamingClient):
 
 
 # **************************************************************
+#                ---stream handling methods---
+# **************************************************************
 
-    
-    async def _update_discord_rules(self, msg=None, /):
+    async def _update_discord_rules(self):
         start = 'Updating rules...'
         finish = 'Updated rules'
 
+        self.bot._log_channel(start)
+
         rules = await self.get_rules()
 
-        if msg is not None:
-            await msg.edit(content=f'{msg.content}\n{start}')
-            if rules.data is not None:
-                msg = await self._clear_rules(msg)
-            msg = await self._add_rules(msg)
-        else:
-            if rules.data is not None:
-                await self._clear_rules()
-            await self._add_rules()
+        if rules.data is not None:
+            await self._clear_rules()
+        await self._add_rules()
 
-        if msg is not None:
-            await msg.edit(content=f'{msg.content}\n{finish}')
+        self.bot._log_channel(finish)
 
     
     async def _clear_rules(self):
-        start = 'Twitter._clear_rules: Removing old rules...'
-        finish = 'Twitter._clear_rules: Cleaned up old rules'
+        start = 'Removing old rules...'
+        finish = 'Cleaned up old rules'
 
-        await self.bot.log_channel.send(start)
+        await self.bot._log_channel(start)
         
         rules = await self.get_rules()
-        await self.bot.log_channel.send(rules)
 
         if rules.data is not None:
+            r = '\n'.join([rule.tag for rule in rules.data])
+            await self.bot._log_channel('```' + r + '```')
             for rule in rules.data:
-                d = await self.bot.log_channel.send(f'Twitter: Deleting rule `{rule}`')
+                d = await self.bot._log_channel(f'Deleting rule `{rule.value}`')
                 await self.delete_rules(rule.id)
-                await d.edit(content=f'Twitter: Deleted rule `{rule.value}`')
+                await d.edit(content=d.content.replace("Deleting", "Deleted"))
 
         else:
-            await self.bot.log_channel.send('Twitter: No rules to clear, continuing...')
+            await self.bot._log_channel('No rules to clear, continuing...')
                 
-        await self.bot.log_channel.send(finish)
+        await self.bot._log_channel(finish)
          
         
     async def _add_rules(self):
-        start = 'Twitter._add_rules: Adding rules...'
-        finish = 'Twitter._add_rules: Rules added'
+        start = 'Adding rules...'
+        finish = 'Rules added'
 
-        await self.bot.log_channel.send(start)
+        await self.bot._log_channel(start)
 
         with open('json/twitter.json', 'r') as f:
             rules = json.load(f)
@@ -180,26 +197,27 @@ class TwitterStream(commands.Cog, asynchronous.AsyncStreamingClient):
         if len(rules) > 0:
             for rule in rules.keys():
                 new_rule = tweepy.StreamRule(value=rule, tag=rule)
-                d = await self.bot.log_channel.send(f"Twitter: Adding rule: `{new_rule}`")
+                d = await self.bot._log_channel(f"Adding rule: `{new_rule.value}`")
                 await self.add_rules(new_rule)
-                await d.edit(content=f'Twitter: Added rule `{new_rule.value}`')
+                await d.edit(content=d.content.replace('Adding', 'Added'))
         
-        await self.bot.log_channel.send(finish)
+        await self.bot._log_channel(finish)
 
     
     async def _filter(self):
-        start = 'Twitter._filter: Filtering...'
-        finish = 'Twitter._filter: Filtered'
+        start = 'Filtering...'
+        finish = 'Filtered'
 
         u_fields = ['name', 'username', 'profile_image_url']
         t_fields = ['entities', 'possibly_sensitive', 'attachments', 'created_at']
         m_fields = ['url', 'variants']
+        # exp = ['author_id', 'attachment.media_keys']
 
-        await self.bot.log_channel.send(start)
+        await self.bot._log_channel(start)
 
         self.filter(expansions='author_id',user_fields=u_fields, tweet_fields=t_fields, media_fields=m_fields)
 
-        await self.bot.log_channel.send(finish)
+        await self.bot._log_channel(finish)
 
 
     async def _start(self, msg=None):
@@ -211,13 +229,24 @@ class TwitterStream(commands.Cog, asynchronous.AsyncStreamingClient):
 
         if msg is not None:
             await msg.edit(content=f'{msg.content}\n\nStream started')
+    
 
-
-# **************************************************************
+    async def _add_rule(self, rule):
+        new_rule = tweepy.StreamRule(value=rule, tag=rule)
+        d = await self.bot._log_channel(f"Adding rule: `{new_rule.value}`")
+        await self.add_rules(new_rule)
+        await d.edit(content=d.content.replace('Adding', 'Added'))
 
     
-    def cog_unload(self):
-        super(asynchronous.AsyncStreamingClient, self).disconnect()
+    async def _del_rule(self, rule):
+        tw_rules = await self.get_rules()
+        if tw_rules.data is not None:
+            for r in tw_rules.data:
+                if r.value == rule:
+                    d = await self.bot._log_channel(f'Deleting rule `{rule}`')
+                    await self.delete_rules(r.id)
+                    await d.edit(content=d.content.replace("Deleting", "Deleted"))
+
 
 
 async def setup(bot):

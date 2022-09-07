@@ -6,6 +6,7 @@
 >BOT_PREFIX={your preferred prefix for the bot}  
 >BOT_OWNER_ID={your main discord user's ID}  
 >BOT_DEBUG_CHANNEL={channel id of the channel you want to use for logging}  
+>BOT_TWEET_DATA_CHANNEL={}  
 >REDDIT_CLIENT_ID={}*  
 >REDDIT_CLIENT_SECRET={}*  
 >REDDIT_USER_ID={}  

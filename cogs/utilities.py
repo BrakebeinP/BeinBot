@@ -21,7 +21,7 @@ reddit = asyncpraw.Reddit(
 
 
 
-class ChatUtilities(commands.Cog, name='Utilities'):
+class ChatUtilities(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
@@ -109,37 +109,36 @@ class ChatUtilities(commands.Cog, name='Utilities'):
                 'usable' : emoji.is_usable()
             }
             emoji = [f'{key}: {value}' for key,value in emoteinfo.items()]
-            await ctx.reply('```'+'\n'.join(emoji)+'```', mention_author=False)
+            await ctx.reply('```'+'\n'.join(emoji)+'```')
         except:
             try:
                 emoji = discord.PartialEmoji.from_str(emote)
                 await emoji.save()
             except:
                 print('NOPE')
-                await ctx.reply('Not an emote', mention_author=False)
+                await ctx.reply('Not an emote')
         else:
-            await ctx.reply('Not an emote', mention_author=False)
+            await ctx.reply('Not an emote')
 
 
     @commands.command(name='owner', help='Tells you who the bot owner is')
     async def get_owner(self, ctx):
         owner = await self.bot.fetch_user(int(self.bot.owner_id))
-        await ctx.reply(f'Bot owner: {owner}', mention_author=False)
+        await ctx.reply(f'Bot owner: {owner}')
 
 
     @commands.command(name='update', hidden=True)
     @commands.is_owner()
     async def update_cogs(self, ctx):
-        await self.bot.log_channel.send('Reloading:\n```- ' + '\n- '.join(COGS) + '```', mention_author=False)
+        await self.bot._log_channel('Reloading:\n```- ' + '\n- '.join(COGS) + '```')
 
         for i in COGS:
             if i != __name__:
-                self.bot.reload_extension(i)
-                await self.bot.log_channel.send(f'Reloaded {i}')
+                d = await self.bot._log_channel(f'Reloading {i}')
+                await self.bot.reload_extension(i)
+                await d.edit(content=d.content.replace('Reloading', 'Reloaded'))
 
-        await self.bot.log_channel.send(f'Reloaded {__name__}')
-        await self.bot.log_channel.send('Reloaded:\n```' + '\n- '.join(COGS) + '```', mention_author=False)
-
+        await self.bot._log_channel(f'Reloaded {__name__}')
         await self.bot.reload_extension(__name__)
         
 
@@ -159,13 +158,13 @@ class ChatUtilities(commands.Cog, name='Utilities'):
             'name': self.bot.user.name}
         print('getto')
         info = [key+': '+value for key,value in bot_info.items()]
-        await ctx.reply('```' + '\n'.join(info)+'```', mention_author=False)
+        await ctx.reply('```' + '\n'.join(info)+'```')
 
     @commands.command(name='cogs', hidden=True)
     @commands.is_owner()
     async def self_cogs(self, ctx):
         cogs = '\n'.join([cog for cog in self.bot.extensions])
-        await self.bot.log_channel.send(cogs)
+        await self.bot._log_channel(cogs)
 
 
     @commands.command(name='shutdown', hidden=True)
@@ -173,7 +172,7 @@ class ChatUtilities(commands.Cog, name='Utilities'):
     async def shutdown(self, ctx):
         with open('last_ctx.txt', 'w') as f:
             f.write(str(ctx.channel.id))
-        await self.bot.log_channel.send('Shutting down')
+        await self.bot._log_channel('Shutting down')
         await self.bot.close()
         sys.exit(f'Bot shutting down..')
 
